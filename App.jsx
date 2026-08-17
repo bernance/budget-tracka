@@ -56,6 +56,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [monthlyPlans, setMonthlyPlans] = useState({});
   const [activeNav, setActiveNav] = useState('planner');
@@ -81,7 +82,8 @@ export default function App() {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
       setUser(session?.user ?? null);
       setAuthLoading(false);
     });
@@ -288,6 +290,10 @@ export default function App() {
 
   if (authLoading) {
     return <div style={{ ...pageStyle, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>Loading…</div>;
+  }
+
+  if (passwordRecovery) {
+    return <ResetPasswordScreen onDone={() => setPasswordRecovery(false)} />;
   }
 
   if (!user) {
@@ -673,18 +679,42 @@ export default function App() {
 }
 
 function AuthScreen() {
-  const [mode, setMode] = useState('login');
+  const [mode, setMode] = useState('login'); // 'login' | 'signup' | 'forgot'
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
+  const resetFields = () => { setError(''); setMessage(''); };
+
+  const switchMode = (next) => {
+    setMode(next);
+    resetFields();
+    setPassword('');
+    setConfirmPassword('');
+  };
+
   const submit = async (e) => {
     e.preventDefault();
-    setLoading(true); setMessage(''); setError('');
-    if (mode === 'signup') {
+    resetFields();
+
+    if (mode === 'signup' && password !== confirmPassword) {
+      setError("Passwords don't match.");
+      return;
+    }
+
+    setLoading(true);
+
+    if (mode === 'forgot') {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + BASE,
+      });
+      if (error) setError(error.message);
+      else setMessage('Reset link sent. Check your email, then follow the link to set a new password.');
+    } else if (mode === 'signup') {
       const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName.trim() } } });
       if (error) setError(error.message);
       else if (!data.session) setMessage('Account created. Check your email to confirm your account, then log in.');
@@ -695,35 +725,114 @@ function AuthScreen() {
     setLoading(false);
   };
 
+  const titleCopy = {
+    login: 'Plan your money before you spend it.',
+    signup: 'Plan your money before you spend it.',
+    forgot: "We'll email you a link to reset your password.",
+  };
+
   return (
     <div style={{ minHeight: '100vh', background: '#F4F3F1', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.25rem' }}>
       <div style={{ width: '100%', maxWidth: 420, background: '#fff', borderRadius: 24, border: '1px solid #ECEAE6', padding: '2rem', boxShadow: '0 12px 40px rgba(20,23,31,0.08)' }}>
         <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
           <img src={`${BASE}icon-192.png`} alt="Bernance" style={{ width: 58, height: 58, borderRadius: 16, marginBottom: '0.75rem' }} />
           <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800 }}>Bernance</h1>
-          <p style={{ margin: '0.35rem 0 0', color: '#8A8F98', fontSize: '0.88rem' }}>Plan your money before you spend it.</p>
+          <p style={{ margin: '0.35rem 0 0', color: '#8A8F98', fontSize: '0.88rem' }}>{titleCopy[mode]}</p>
         </div>
 
-        <div style={{ display: 'flex', background: '#F4F3F1', borderRadius: 12, padding: 4, marginBottom: '1rem' }}>
-          {['login', 'signup'].map((item) => (
-            <button key={item} type="button" onClick={() => { setMode(item); setError(''); setMessage(''); }} style={{ flex: 1, border: 'none', borderRadius: 9, padding: '0.65rem', background: mode === item ? '#fff' : 'transparent', fontWeight: 700, color: mode === item ? '#0B1229' : '#8A8F98', cursor: 'pointer', boxShadow: mode === item ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>
-              {item === 'login' ? 'Log in' : 'Sign up'}
-            </button>
-          ))}
-        </div>
+        {mode !== 'forgot' && (
+          <div style={{ display: 'flex', background: '#F4F3F1', borderRadius: 12, padding: 4, marginBottom: '1rem' }}>
+            {['login', 'signup'].map((item) => (
+              <button key={item} type="button" onClick={() => switchMode(item)} style={{ flex: 1, border: 'none', borderRadius: 9, padding: '0.65rem', background: mode === item ? '#fff' : 'transparent', fontWeight: 700, color: mode === item ? '#0B1229' : '#8A8F98', cursor: 'pointer', boxShadow: mode === item ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>
+                {item === 'login' ? 'Log in' : 'Sign up'}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {mode === 'forgot' && (
+          <button type="button" onClick={() => switchMode('login')} className="press" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'none', border: 'none', color: '#0891B2', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', padding: 0, marginBottom: '1rem' }}>
+            <ChevronLeft size={16} /> Back to log in
+          </button>
+        )}
 
         <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
-          {mode === 'signup' && <input required type="text" placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} style={inputStyle} />}
-          <input required type="email" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
-          <input required minLength={6} type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} />
+          {mode === 'signup' && <input required type="text" placeholder="Name" value={fullName} onChange={(e) => setFullName(e.target.value)} style={inputStyle} />}
+          <input required type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
+
+          {mode !== 'forgot' && (
+            <input required minLength={6} type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} />
+          )}
+          {mode === 'signup' && (
+            <input required minLength={6} type="password" placeholder="Confirm password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} style={inputStyle} />
+          )}
+
           {error && <p style={{ margin: 0, color: '#DC2626', fontSize: '0.8rem' }}>{error}</p>}
           {message && <p style={{ margin: 0, color: '#059669', fontSize: '0.8rem' }}>{message}</p>}
+
           <button disabled={loading} type="submit" className="press" style={{ ...primaryBtn, marginTop: '0.25rem', background: 'linear-gradient(135deg,#0891B2,#0B1229)', opacity: loading ? 0.7 : 1 }}>
-            {loading ? 'Please wait…' : mode === 'login' ? 'Log in' : 'Create account'}
+            {loading ? 'Please wait…' : mode === 'login' ? 'Log in' : mode === 'signup' ? 'Create account' : 'Send reset email'}
           </button>
+
+          {mode === 'login' && (
+            <button type="button" onClick={() => switchMode('forgot')} className="press" style={{ background: 'none', border: 'none', color: '#8A8F98', fontSize: '0.8rem', cursor: 'pointer', padding: '0.25rem 0', textAlign: 'center' }}>
+              Forgot password?
+            </button>
+          )}
         </form>
 
         <p style={{ margin: '1rem 0 0', textAlign: 'center', color: '#9CA3AF', fontSize: '0.72rem', lineHeight: 1.5 }}>Your financial data is private to your account.</p>
+      </div>
+    </div>
+  );
+}
+
+function ResetPasswordScreen({ onDone }) {
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [done, setDone] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (password !== confirmPassword) {
+      setError("Passwords don't match.");
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.updateUser({ password });
+    setLoading(false);
+    if (error) { setError(error.message); return; }
+    setDone(true);
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#F4F3F1', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.25rem' }}>
+      <div style={{ width: '100%', maxWidth: 420, background: '#fff', borderRadius: 24, border: '1px solid #ECEAE6', padding: '2rem', boxShadow: '0 12px 40px rgba(20,23,31,0.08)' }}>
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <img src={`${BASE}icon-192.png`} alt="Bernance" style={{ width: 58, height: 58, borderRadius: 16, marginBottom: '0.75rem' }} />
+          <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800 }}>{done ? 'Password updated' : 'Set a new password'}</h1>
+          <p style={{ margin: '0.35rem 0 0', color: '#8A8F98', fontSize: '0.88rem' }}>
+            {done ? 'You can now continue into your account.' : 'Choose a new password for your account.'}
+          </p>
+        </div>
+
+        {done ? (
+          <button onClick={onDone} className="press" style={{ ...primaryBtn, width: '100%', background: 'linear-gradient(135deg,#0891B2,#0B1229)' }}>
+            Continue
+          </button>
+        ) : (
+          <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
+            <input required minLength={6} type="password" placeholder="New password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} />
+            <input required minLength={6} type="password" placeholder="Confirm new password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} style={inputStyle} />
+            {error && <p style={{ margin: 0, color: '#DC2626', fontSize: '0.8rem' }}>{error}</p>}
+            <button disabled={loading} type="submit" className="press" style={{ ...primaryBtn, marginTop: '0.25rem', background: 'linear-gradient(135deg,#0891B2,#0B1229)', opacity: loading ? 0.7 : 1 }}>
+              {loading ? 'Please wait…' : 'Update password'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
