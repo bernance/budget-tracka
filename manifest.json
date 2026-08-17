@@ -1,0 +1,17 @@
+{
+  "name": "Bernard budget tracker",
+  "short_name": "Bernance",
+  "description": "Plan your income and expenses before you spend.",
+  "start_url": "/budget-tracker/",
+  "scope": "/budget-tracker/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B1229",
+  "theme_color": "#0B1229",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
