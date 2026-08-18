@@ -710,12 +710,12 @@ function AuthScreen() {
 
     if (mode === 'forgot') {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + BASE,
+        redirectTo: 'https://bernance.github.io/budget-tracka/',
       });
       if (error) setError(error.message);
       else setMessage('Reset link sent. Check your email, then follow the link to set a new password.');
     } else if (mode === 'signup') {
-      const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName.trim() } } });
+      const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName.trim() }, emailRedirectTo: 'https://bernance.github.io/budget-tracka/', } });
       if (error) setError(error.message);
       else if (!data.session) setMessage('Account created. Check your email to confirm your account, then log in.');
     } else {
