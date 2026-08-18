@@ -122,7 +122,7 @@ export default function App() {
       (incomesResult.data || []).forEach((i) => {
         const month = (i.due_date || new Date().toISOString().slice(0, 10)).slice(0, 7);
         if (!plans[month]) plans[month] = { incomes: [], expenses: [] };
-        plans[month].incomes.push({ id: i.id, source: i.source, amount: Number(i.amount) });
+        plans[month].incomes.push({ id: i.id, source: i.description, amount: Number(i.amount) });
       });
       (expensesResult.data || []).forEach((e) => {
         const month = (e.due_date || new Date().toISOString().slice(0, 10)).slice(0, 7);
@@ -149,10 +149,10 @@ export default function App() {
     e.preventDefault();
     if (!user || !incomeForm.source || !incomeForm.amount) return;
     const { data, error } = await supabase.from('planned_incomes').insert({
-      user_id: user.id, source: incomeForm.source, amount: parseFloat(incomeForm.amount), due_date: `${selectedMonth}-01`,
+      user_id: user.id, description: incomeForm.source, amount: parseFloat(incomeForm.amount), due_date: `${selectedMonth}-01`,
     }).select().single();
     if (error) return alert(error.message);
-    updatePlanLocal(selectedMonth, (plan) => ({ ...plan, incomes: [...plan.incomes, { id: data.id, source: data.source, amount: Number(data.amount) }] }));
+    updatePlanLocal(selectedMonth, (plan) => ({ ...plan, incomes: [...plan.incomes, { id: data.id, source: data.description, amount: Number(data.amount) }] }));
     setIncomeForm({ source: '', amount: '' });
     setShowIncomeForm(false);
   };
@@ -277,7 +277,7 @@ export default function App() {
                   linear-gradient(120deg, #0B1229 0%, #123354 100%)`,
   };
 
-  const pageStyle = { minHeight: '100vh', background: '#F4F3F1', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif", color: '#14171F', paddingBottom: '5.5rem' };
+  const pageStyle = { minHeight: '100vh', background: '#F4F3F1', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif", color: '#14171F', paddingBottom: 'calc(5.5rem + env(safe-area-inset-bottom))' };
   const shell = { maxWidth: 480, margin: '0 auto', padding: '1.25rem 1.25rem 0' };
   const card = { background: '#FFFFFF', borderRadius: 20, border: '1px solid #ECEAE6', boxShadow: '0 1px 2px rgba(20,23,31,0.04)' };
 
